@@ -28,10 +28,9 @@ JWT_SECRET_KEY=<your-sercret-key>
 pip install -r requirements.txt
 ```
 
-5. Initialize a database 
-(if you have `ModuleNotFoundError: No module named 'dotenv'` try to exit venv (Ctrl+D) and activating again `source venv/bin/activate`)
+5. Create SQLite database by running upgrade command (you will notice a file named app.db is added after this command finishes)
 ```bash
-flask db init
+flask db upgrade
 ```
 
 6. Finally run the application with 
