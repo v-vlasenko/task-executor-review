@@ -12,6 +12,7 @@ migrate = Migrate()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.config['PORT'] = config_class.PORT
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)

@@ -44,8 +44,3 @@ class TokenBlockList(db.Model):
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data["sub"]
     return Users.query.filter_by(username=identity).first()
-
-
-
-
-
