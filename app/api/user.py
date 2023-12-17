@@ -1,9 +1,10 @@
+from pydantic import ValidationError
 from app import db
 from app.models import Users, Account
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, current_user
-from app.api.errors import JsonApiErrorResponse, JsonApiError
-
+from app.api.schemas.errors import JsonApiErrorResponse, JsonApiError
+from app.api.schemas.user import InviteInputPayload
 
 bp = Blueprint('user', __name__)
 
@@ -11,16 +12,17 @@ bp = Blueprint('user', __name__)
 @bp.route('/invite', methods=['POST'])
 @jwt_required()
 def invite():
-    data = request.get_json()
+    try:
+        data = request.get_json()
+        InviteInputPayload.model_validate(data)
+    except ValidationError as e:
+        missing_attribute_path = ' -> '.join(map(str, e.errors()[0]['loc']))
+        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
+            status='422', detail=f'Missing required attribute: {missing_attribute_path}'
+        )])), 422
 
     attributes = data.get('data', {}).get('attributes', {})
     new_username = attributes.get('new_username')
-
-    if not attributes or not new_username:
-        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='400',
-            detail="Invalid syntax"
-        )])), 400
 
     if not current_user.is_owner:
         return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
@@ -59,11 +61,6 @@ def get_info(user_id):
         )])), 404
 
     account = Account.query.filter_by(account_id=user.account_id).first()
-    if account is None:
-        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='404',
-            detail="Account not found"
-        )])), 404
 
     return jsonify({
         "data": {

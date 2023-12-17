@@ -61,7 +61,7 @@ def test_missing_username_or_password(client):
     errors = response.get_json()['errors']
     assert len(errors) == 1
     assert errors[0]['status'] == '422'
-    assert errors[0]['detail'] == 'Required field: username'
+    assert errors[0]['detail'] == 'Missing required attribute: data -> attributes -> username'
 
 
 def test_user_not_found(client):
