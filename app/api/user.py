@@ -77,3 +77,35 @@ def get_info(user_id):
             }
         }
     })
+
+
+@bp.route('/remove_account/<account_id>', methods=['DELETE'])
+@jwt_required()
+def remove_account(account_id):
+    if not current_user.is_owner:
+        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
+            status='403',
+            detail="User must be an owner to remove the account"
+        )])), 403
+
+    if current_user.account_id != account_id:
+        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
+            status='403',
+            detail="User is not the owner of the specified account"
+        )])), 403
+
+    account = Account.query.filter_by(account_id=account_id).first()
+    if not account:
+        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
+            status='404',
+            detail="Account not found"
+        )])), 404
+
+    users = Users.query.filter_by(account_id=account_id).all()
+    for user in users:
+        db.session.delete(user)
+
+    db.session.delete(account)
+    db.session.commit()
+
+    return jsonify({'data': {'message': 'Account has been successfully removed'}}), 200
