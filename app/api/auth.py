@@ -4,39 +4,39 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
 from app.models import Users, Account, TokenBlockList
 from app.api.errors import JsonApiErrorResponse, JsonApiError
+from app.api.schemas import auth
+from pydantic import ValidationError
 
 bp = Blueprint('auth', __name__)
 
 
 @bp.route('/signup', methods=['POST'])
 def signup():
-    data = request.get_json()
-
-    if not data.get('data', {}):
+    try:
+        data = request.get_json()
+        auth.SignupInputPayload.model_validate(data)
+    except ValidationError as e:
+        missing_attribute_path = ' -> '.join(map(str, e.errors()[0]['loc']))
         return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='422', detail="Required field: data")])), 422
+            status='422', detail=f'Missing required attribute: {missing_attribute_path}'
+        )])), 422
 
     attributes = data.get('data', {}).get('attributes', {})
-    if not attributes:
-        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='422', detail="Required field: attributes")])), 422
-
     username = attributes.get('username')
     password = attributes.get('password')
     account_name = attributes.get('account_name')
-
-    missing_attributes = [attr for attr in ['username', 'password', 'account_name'] if attr not in attributes]
-    if missing_attributes:
-        missing_attributes_str = ', '.join(missing_attributes)
-        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='422',
-            detail=f'Required field{"s" if len(missing_attributes) > 1 else ""}: {missing_attributes_str}'
-        )])), 422
 
     existing_user = Users.query.filter_by(username=username).first()
     if existing_user:
         return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
             status='422', detail=f'User already exists')])), 422
+
+    existing_account = Account.query.filter_by(account_name=account_name).first()
+    if existing_account:
+        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
+            status='422',
+            detail="Account already exists"
+        )])), 422
 
     new_account = Account(account_name=account_name)
     db.session.add(new_account)
@@ -72,28 +72,18 @@ def signup():
 
 @bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    if not data.get('data', {}):
+    try:
+        data = request.get_json()
+        auth.LoginInputPayload.model_validate(data)
+    except ValidationError as e:
+        missing_attribute_path = ' -> '.join(map(str, e.errors()[0]['loc']))
         return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='422', detail="Required field: data")])), 422
+            status='422', detail=f'Missing required attribute: {missing_attribute_path}'
+        )])), 422
 
     attributes = data.get('data', {}).get('attributes', {})
-    if not attributes:
-        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='422', detail="Required field: attributes")])), 422
-
     username = attributes.get('username')
     password = attributes.get('password')
-
-    required_attributes = ['username', 'password']
-    missing_attributes = [attr for attr in required_attributes if attr not in attributes]
-    if missing_attributes:
-        missing_attributes_str = ', '.join(missing_attributes)
-        return jsonify(JsonApiErrorResponse(errors=[JsonApiError(
-            status='422',
-            detail=f'Required field{"s" if len(missing_attributes) > 1 else ""}: '
-                   f'{missing_attributes_str}'
-        )])), 422
 
     user = Users.query.filter_by(username=username).first()
     if not user:

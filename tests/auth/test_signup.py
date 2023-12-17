@@ -46,4 +46,4 @@ def test_missing_required_fields(client):
     errors = response.get_json()['errors']
     assert len(errors) == 1
     assert errors[0]['status'] == '422'
-    assert errors[0]['detail'] == 'Required fields: password, account_name'
+    assert errors[0]['detail'] == 'Missing required attribute: data -> attributes -> password'
