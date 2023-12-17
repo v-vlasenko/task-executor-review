@@ -1,11 +1,19 @@
-import requests
-from pprint import pprint
+import logging
 
 
 class Client:
-    def __init__(self, host):
+    def __init__(self, host, http_client):
         self.host = host
         self.token = None
+        self.logging = logging
+        self.LOG = logging.getLogger(__name__)
+        self._client = http_client
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
 
     def signup(self, username, password, account_name):
         data = {
@@ -17,12 +25,11 @@ class Client:
                 }
             }
         }
-        response = requests.post(f"{self.host}/auth/signup", json=data)
+        response = self._client.post(f"{self.host}/api/auth/signup", json=data)
         if response.status_code == 201:
+            self.LOG.info(f"New account {account_name} has been created by {username}.")
             self.token = response.json()["data"]["attributes"]["token"]
             return self.token
-        else:
-            return response.json()
 
     def login(self, username, password):
         data = {
@@ -33,23 +40,26 @@ class Client:
                 }
             }
         }
-        response = requests.post(f"{self.host}/auth/login", json=data)
+        response = self._client.post(f"{self.host}/api/auth/login", json=data)
         if response.status_code == 201:
-            self.token = response.json()["data"]["attributes"]["token"]
+            self.LOG.info(f"User {username} has been successfully logged in")
+            self.token = response.json()["data"]["token"]
             return self.token
-        else:
-            return response.json()
 
     def invite_user(self, new_username):
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
         data = {"data": {"attributes": {"new_username": new_username}}}
-        response = requests.post(f"{self.host}/user/invite", json=data, headers=headers)
-        return response.json()
+        response = self._client.post(f"{self.host}/api/user/invite", json=data, headers=headers)
+        if response.status_code == 201:
+            self.LOG.info(f"User {new_username} has been successfully invited")
+            return response.json()
 
-    def get_info(self):
+    def get_user_info(self, user_id):
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
-        response = requests.get(f"{self.host}/user/get_info", headers=headers)
-        return response.json()
+        response = self._client.get(f"{self.host}/api/user/get_info/{user_id}", headers=headers)
+        if response.status_code == 200:
+            self.LOG.info(f"Info about user with id: {user_id} has been successfully retrieved")
+            return response.json()
 
 
 """ 
